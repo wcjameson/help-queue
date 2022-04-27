@@ -1,13 +1,13 @@
 import React from "react";
 import Header from "./Header";
-import TicketList from "./TicketList";
+import TicketControl from "./TicketControl";
 
 function App() {
 
   return (
     <React.Fragment>
       <Header />
-      <TicketList />
+      <TicketControl />
       {/* This is a JSX comment*/}
     </React.Fragment>
   );
