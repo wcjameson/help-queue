@@ -1,45 +1,51 @@
 import React from "react";
 import Ticket from "./Ticket";
 import PropTypes from "prop-types";
+import { useSelector } from 'react-redux'
+import { useFirestoreConnect, isLoaded, isEmpty } from 'react-redux-firebase'
 
-// const mainTicketList = [
-//   {
-//     names: "Thato and Haley",
-//     location: "3A",
-//     issue: "Firebase won't save record. Halp."
-//   },
-//   {
-//     names: "Sleater and Kinney",
-//     location: "4B",
-//     issue: "Prop types are throwing an error."
-//   },
-//   {
-//     names: "Imanin and Jacob",
-//     location: "9F",
-//     issue: "Child component isn't rendering."
-//   }
-// ];
 
 function TicketList(props) {
-  return (
-    <React.Fragment>
-      <hr />
-      {Object.values(props.ticketList).map((ticket) =>
-        <Ticket
-          whenTicketClicked={props.onTicketSelection}
-          names={ticket.names}
-          location={ticket.location}
-          issue={ticket.issue}
-          formattedWaitTime={ticket.formattedWaitTime}
-          id={ticket.id}
-          key={ticket.id} />
-      )}
-    </React.Fragment>
-  );
+  // The useFirestoreConnect() hook comes from react-redux-firebase.
+  // allows us to listen for changes to Firestore without using an HOC in a class component.
+  useFirestoreConnect([
+    { collection: 'tickets' }
+  ]);
+
+  // The useSelector() hook comes from react-redux.
+  // allows us to extract data from a Redux store.
+  const tickets = useSelector(state => state.firestore.ordered.tickets);
+
+  // react-redux-firebase also offers a useful isLoaded() function.
+  // isLoaded() and isEmpty() from react-redux-firebase allow us to check if a collection has been retrieved from Firestore.
+  if (isLoaded(tickets)) {
+
+    return (
+      <React.Fragment>
+        <hr />
+        {tickets.map((ticket) => {
+          return <Ticket
+            whenTicketClicked={props.onTicketSelection}
+            names={ticket.names}
+            location={ticket.location}
+            issue={ticket.issue}
+            formattedWaitTime={ticket.formattedWaitTime}
+            id={ticket.id}
+            key={ticket.id} />
+        })}
+      </React.Fragment>
+    );
+  }else {
+    return (
+      <React.Fragment>
+        <h3>Loading...</h3>
+      </React.Fragment>
+    )
+  }
 }
 
 TicketList.propTypes = {
-  ticketList: PropTypes.object,
+  // ticketList: PropTypes.object,
   onTicketSelection: PropTypes.func
 };
 

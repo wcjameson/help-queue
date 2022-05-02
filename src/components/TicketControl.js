@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 import PropTypes from "prop-types";
 import * as a from './../actions';
 import Moment from 'moment';
+import { withFirestore } from 'react-redux-firebase'
 
 class TicketControl extends React.Component {
 
@@ -30,37 +31,30 @@ class TicketControl extends React.Component {
   }
 
   componentDidMount() {
-    this.waitTimeUpdateTimer = setInterval(() => 
-    this.updateTicketElapsedWaitTime(),
-    60000
+    this.waitTimeUpdateTimer = setInterval(() =>
+      this.updateTicketElapsedWaitTime(),
+      60000
     );
   }
 
   //Every minute, this function will dispatch an action for every single ticket in the queue.
-  updateTicketElapsedWaitTime = () => {
-    const { dispatch } = this.props;
-    Object.values(this.props.mainTicketList).forEach(ticket => {
-      const newFormattedWaitTime = ticket.timeOpen.fromNow(true);
-      const action = a.updateTime(ticket.id, newFormattedWaitTime);
-      dispatch(action);
-    });
-  }
+  // updateTicketElapsedWaitTime = () => {
+  //   const { dispatch } = this.props;
+  //   Object.values(this.props.mainTicketList).forEach(ticket => {
+  //     const newFormattedWaitTime = ticket.timeOpen.fromNow(true);
+  //     const action = a.updateTime(ticket.id, newFormattedWaitTime);
+  //     dispatch(action);
+  //   });
+  // }
 
-  handleAddingNewTicketToList = (newTicket) => {
+  handleAddingNewTicketToList = () => {
     const { dispatch } = this.props;
-    const { id, names, location, issue } = newTicket;
-    const action = a.addTicket(newTicket);
+    const action = a.toggleForm();
     dispatch(action);
-    const action2 = a.toggleForm();
-    dispatch(action2);
     // this.setState({ formVisibleOnPage: false }); Because Redux will be handling this slice of state, we won't be using React or setState() to take care of form visibility any longer.
   }
 
-  handleEditingTicketInList = (ticketToEdit) => {
-    const { dispatch } = this.props;
-    const { id, names, location, issue } = ticketToEdit;
-    const action = a.addTicket(ticketToEdit);
-    dispatch(action);
+  handleEditingTicketInList = () => {
     this.setState({
       editing: false,
       selectedTicket: null
@@ -68,14 +62,21 @@ class TicketControl extends React.Component {
   }
 
   handleChangingSelectedTicket = (id) => {
-    const selectedTicket = this.props.mainTicketList[id]
-    this.setState({selectedTicket: selectedTicket});
+    // const selectedTicket = this.props.mainTicketList[id]
+    //We can use Firestore's get() method to manually retrieve a collection or a subset of a collection.
+    this.props.firestore.get({ collection: 'tickets', doc: id }).then((ticket) => { //returns a promise that returns a DocumentSnapshot that is a read only object
+      const firestoreTicket = {
+        names: ticket.get("names"),
+        location: ticket.get("location"),
+        issue: ticket.get("issue"),
+        id: ticket.id
+      } //We reconstruct a ticket and then set that object to the value of firestoreTicket, now we have a value to pass into selectedTicket
+      this.setState({ selectedTicket: firestoreTicket });
+    });
   }
 
   handleDeletingTicket = (id) => {
-    const { dispatch } = this.props;
-    const action = a.deleteTicket(id);
-    dispatch(action);
+    this.props.firestore.delete({ collection: 'tickets', doc: id }); //We access Firestore via this.props.firestore. Then we call the delete() method
     this.setState({
       selectedTicket: null
     });
@@ -83,7 +84,7 @@ class TicketControl extends React.Component {
 
   handleEditClick = () => {
     console.log("handleEditClick reached!");
-    this.setState({editing: true});
+    this.setState({ editing: true });
   }
 
   handleClick = () => {
@@ -107,17 +108,17 @@ class TicketControl extends React.Component {
     let currentlyVisibleState = null;
     let buttonText = null;
 
-    if (this.state.editing ) {      
-      currentlyVisibleState = <EditTicketForm ticket = {this.state.selectedTicket} onClickingEdit = {this.handleEditingTicketInList} />
+    if (this.state.editing) {
+      currentlyVisibleState = <EditTicketForm ticket={this.state.selectedTicket} onClickingEdit={this.handleEditingTicketInList} />
       buttonText = "Return to Ticket List";
     } else if (this.state.selectedTicket != null) {
-      currentlyVisibleState = <TicketDetail ticket = {this.state.selectedTicket} onClickingDelete = {this.handleDeletingTicket} onClickingEdit = {this.handleEditClick} />
+      currentlyVisibleState = <TicketDetail ticket={this.state.selectedTicket} onClickingDelete={this.handleDeletingTicket} onClickingEdit={this.handleEditClick} />
       buttonText = "Return to Ticket List";
     } else if (this.props.formVisibleOnPage) {
-      currentlyVisibleState = <NewTicketForm onNewTicketCreation={this.handleAddingNewTicketToList}/>;
+      currentlyVisibleState = <NewTicketForm onNewTicketCreation={this.handleAddingNewTicketToList} />;
       buttonText = "Return to Ticket List";
     } else {
-      currentlyVisibleState = <TicketList ticketList={this.props.mainTicketList} onTicketSelection={this.handleChangingSelectedTicket} />;  //this.state (which refers to a class component's state) and this.props (which refers to the props being passed into a component from a parent component or the Redux store)
+      currentlyVisibleState = <TicketList /*ticketList={this.props.mainTicketList}*/ onTicketSelection={this.handleChangingSelectedTicket} />;  //this.state (which refers to a class component's state) and this.props (which refers to the props being passed into a component from a parent component or the Redux store)
       buttonText = "Add Ticket";
     }
     return (
@@ -133,7 +134,7 @@ class TicketControl extends React.Component {
 
 const mapStateToProps = state => {
   return {
-    mainTicketList: state.mainTicketList, //mapping state slices to component props
+    // mainTicketList: state.mainTicketList, //mapping state slices to component props
     formVisibleOnPage: state.formVisibleOnPage
   }
 }
@@ -145,4 +146,4 @@ TicketControl.propTypes = {
   formVisibleOnPage: PropTypes.bool
 };
 
-export default TicketControl;
+export default withFirestore(TicketControl);
